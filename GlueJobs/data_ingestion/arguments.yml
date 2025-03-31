@@ -1,0 +1,6 @@
+{	
+	config_s3_location : s3://shivam-trial-s3/code_artefacts/config_file/config.yml
+	--dataset_name : event
+	--utility_name : data_ingestion
+	--batch_date : 2025-03-31T08:26:00.712Z
+}
