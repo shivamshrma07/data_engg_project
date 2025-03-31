@@ -1,0 +1,164 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Data Ingestion",
+  "States": {
+    "Data Ingestion": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Data Ingestion - User",
+          "States": {
+            "Data Ingestion - User": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "data_ingestion",
+                "Arguments": {
+                  "--batch_date": "{% $states.context.Execution.StartTime %}",
+                  "--dataset_name": "user"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Data Ingestion - Content",
+          "States": {
+            "Data Ingestion - Content": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "data_ingestion",
+                "Arguments": {
+                  "--batch_date": "{% $states.context.Execution.StartTime %}",
+                  "--dataset_name": "content"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Data Ingestion - Event",
+          "States": {
+            "Data Ingestion - Event": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "data_ingestion",
+                "Arguments": {
+                  "--batch_date": "{% $states.context.Execution.StartTime %}",
+                  "--dataset_name": "event"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "Data Staging"
+    },
+    "Data Staging": {
+      "Type": "Parallel",
+      "Next": "Data Staging- Event",
+      "Branches": [
+        {
+          "StartAt": "Data Staging- User",
+          "States": {
+            "Data Staging- User": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "Raw2Staging_UserTable"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Data Staging- Content",
+          "States": {
+            "Data Staging- Content": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "Raw2Staging_ContentTable"
+              },
+              "End": true
+            }
+          }
+        }
+      ]
+    },
+    "Data Staging- Event": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Arguments": {
+        "JobName": "Raw2Staging_EventTable"
+      },
+      "Next": "User Segmentation Dataset"
+    },
+    "User Segmentation Dataset": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Arguments": {
+        "JobName": "Mart_UserSegmentation",
+        "Arguments": {
+          "--batch_date": "{% $states.context.Execution.StartTime %}"
+        }
+      },
+      "Next": "Segment Inactivity Time Dataset"
+    },
+    "Segment Inactivity Time Dataset": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Arguments": {
+        "JobName": "Mart_SegmentInactivityTime",
+        "Arguments": {
+          "--batch_date": "{% $states.context.Execution.StartTime %}"
+        }
+      },
+      "Next": "Retention & Churn Metrics"
+    },
+    "Retention & Churn Metrics": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "StartAt": "Retention Metrics Dataset",
+          "States": {
+            "Retention Metrics Dataset": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "Mart_RetentionMetrics",
+                "Arguments": {
+                  "--batch_date": "{% $states.context.Execution.StartTime %}"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Churn Metrics Dataset",
+          "States": {
+            "Churn Metrics Dataset": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Arguments": {
+                "JobName": "Mart_ChurnMetrics",
+                "Arguments": {
+                  "--batch_date": "{% $states.context.Execution.StartTime %}"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "QueryLanguage": "JSONata"
+}
